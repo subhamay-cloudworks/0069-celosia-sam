@@ -8,11 +8,11 @@ This is a demo of a step function to loop through a list of items. In the first 
 
 The entire stack is created using AWS SAM (Serverless Application Model).
 
-![Project Celosia - Design Diagram](https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/celosia-architecture-diagram.png)
+![Project Celosia - Design Diagram](https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/celosia-architecture-diagram.png?)
 
-![Project Celosia - Services Used](https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/celosia-services-used-sam.png)
+![Project Celosia - Services Used](https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/celosia-services-used-sam.png?)
 
-![Project Celosia - Workflow](https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/celosia-step-function.png)
+![Project Celosia - Workflow](https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/celosia-step-function.png?)
 
 ### Installing
 
