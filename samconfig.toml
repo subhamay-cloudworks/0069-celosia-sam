@@ -1,0 +1,13 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "celosia-stack"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-e4e0k7l11zg1"
+s3_prefix = "celosia-stack"
+region = "us-east-1"
+capabilities = "CAPABILITY_NAMED_IAM"
+disable_rollback = true
+parameter_overrides = "ProjectName=\"celosia\" Environment=\"devl\" KmsMasterKeyAlias=\"SB-KMS\" KmsMasterKeyId=\"e4c733c5-9fbe-4a90-bda1-6f0362bc9b89\" SNSTopicBaseName=\"celosia-sns-topic\" SNSTopicDisplayName=\"Celosia CloudWatch Alarm For Lambda.\" SNSSubscriptionEmail=\"subhamay.aws@mailinator.com\" SQSQueueBaseName=\"celosia-sqs-queue\" DelaySeconds=\"0\" MaximumMessageSize=\"262144\" MessageRetentionPeriod=\"345600\" ReceiveMessageWaitTimeSeconds=\"5\" VisibilityTimeout=\"0\" DynamoDBTableBaseName=\"celosia-table\" LambdaExecutionRoleName=\"celosia-lambda-role\" LambdaExecutionPolicyName=\"celosia-lambda-policy\" LambdaFunctionBaseName=\"celosia-insert-data\" LambdaReservedConcurrency=\"2\" StepFunctionBaseName=\"celosia-state-machine\" StepFunctionExecutionRoleName=\"celosia-step-function-role\" StepFunctionExecutionPolicyName=\"celosia-step-function-policy\" AlarmNameLambdaInvocations=\"celosia-lambda-invocations-alarm\" AlarmThresholdLambdaInvocations=\"5\" AlarmPeriodInSecondsLambdaInvocations=\"60\" DatapointsToAlarmLambdaInvocations=\"1\" EvaluationPeriodsForLambdaInvocations=\"1\" AlarmComparisonOperatorLambdaInvocations=\"GreaterThanOrEqualToThreshold\" AlarmNameLambdaErrors=\"celosia-lambda-errors\" AlarmThresholdLambdaErrors=\"2\" AlarmPeriodInSecondsLambdaErrors=\"60\" DatapointsToAlarmLambdaErrors=\"1\" EvaluationPeriodsForLambdaErrors=\"1\" AlarmComparisonOperatorLambdaErrors=\"GreaterThanOrEqualToThreshold\" AlarmNameLambdaThrottles=\"celosia-lambda-throttles\" AlarmThresholdLambdaThrottles=\"3\" AlarmPeriodInSecondsLambdaThrottles=\"60\" DatapointsToAlarmLambdaThrottles=\"1\" EvaluationPeriodsForLambdaThrottles=\"1\" AlarmComparisonOperatorLambdaThrottles=\"GreaterThanOrEqualToThreshold\" AlarmNameLambdaDuration=\"celosia-duration\" AlarmThresholdLambdaDuration=\"100\" AlarmPeriodInSecondsLambdaDuration=\"900\" DatapointsToAlarmLambdaDuration=\"1\" EvaluationPeriodsForLambdaDuration=\"1\" AlarmComparisonOperatorLambdaDuration=\"GreaterThanOrEqualToThreshold\" AlarmNameLambdaConcurrentExecutions=\"celosia-conc-exec\" AlarmThresholdLambdaConcurrentExecutions=\"3\" AlarmPeriodInSecondsLambdaConcurrentExecutions=\"60\" DatapointsToAlarmLambdaConcurrentExecutions=\"1\" EvaluationPeriodsForLambdaConcurrentExecutions=\"1\" AlarmComparisonOperatorLambdaConcurrentExecutions=\"GreaterThanOrEqualToThreshold\""
+image_repositories = []
+confirm_changeset = true

@@ -1,0 +1,436 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Project Celosia: SAM Template To Create a Step Function with DynamoDB table, SNS Topic with subscription 
+   and a Lambda function with CloudWatch Alarms and SQS Queue.
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 300
+    MemorySize: 128
+    Runtime: python3.9
+    Handler: celosia_code.lambda_handler
+    Tracing: Active
+
+Parameters:
+  ###################################### Project Name and Environment ##############################
+  ProjectName:
+    Default: celosia
+    Type: String
+    Description: "The Project Name."
+  Environment:
+    Default: devl
+    Type: String
+    Description: "The Environment Name."
+  ###################################### KMS Key ###################################################
+  KmsMasterKeyAlias:
+    Default: "SB-KMS"
+    Type: String
+    Description: "The KMS Master Key Alias To Be Used For Server Side Encryption."
+  KmsMasterKeyId:
+    Default: "e4c733c5-9fbe-4a90-bda1-6f0362bc9b89"
+    Type: String
+    Description: "The KMS Key Id Used For Encryption."
+  ###################################### SNS Topic With Email Subscription #########################
+  SNSTopicBaseName:
+    Default: "celosia-sns-topic"
+    Type: String
+    Description: "The Base Name Of The Sns Topic. The Region And Environment Will Be Added As Suffix By The Template."
+  SNSTopicDisplayName:
+    Default: "Celosia CloudWatch Alarm For Lambda."
+    Type: String
+    Description: "The SNS Topic Display Name."
+  SNSSubscriptionEmail:
+    Default: "subhamay.aws@gmail.com"
+    Type: String
+    Description: "The Subscription Email For The Sns Topic."
+  ###################################### SQS Queue #################################################
+  SQSQueueBaseName:
+    Default: "celosia-sqs-queue"
+    Type: String
+    Description: "The Base Name Of The Sqs Queue (Dead Letter Quque). The Region And Environment Will Be Added As Suffix By The Template."
+  DelaySeconds:
+    Default: 0
+    Type: Number
+    Description: "Delay Seconds."
+  MaximumMessageSize:
+    Default: 262144
+    Type: Number
+    Description: "Maximum Message Size."
+  MessageRetentionPeriod:
+    Default: 345600
+    Type: Number
+    Description: "Message Retention Period."
+  ReceiveMessageWaitTimeSeconds:
+    Default: 5
+    Type: Number
+    Description: "Received Message Wait Time Seconds."
+  VisibilityTimeout:
+    Default: 0
+    Type: Number
+    Description: "Visibility Timeout."
+  ###################################### DynamoDB Table ############################################
+  DynamoDBTableBaseName:
+    Default: celosia-table
+    Type: String
+    Description: "The Name Of The Dynamodb Table Used For Iterating Using Step Function Map State."
+  ###################################### Lambda Function ###########################################
+  LambdaExecutionRoleName:
+    Default: celosia-lambda-role
+    Type: String
+    Description: "The Execution Role Of The Lambda Function."
+  LambdaExecutionPolicyName:
+    Default: celosia-lambda-policy
+    Type: String
+    Description: "The Execution Policy Attached To The Lambda Execution Role."
+  LambdaFunctionBaseName:
+    Default: celosia-insert-data
+    Type: String
+    Description: "The Base Name The Lambda Function. The Region And Environment Will Be Added As Suffix By The Template."
+  LambdaReservedConcurrency:
+    Default: 2
+    Type: Number
+    Description: "Lambda Reserved Concurrency"
+  #################################### State Machine ###########################################
+  StepFunctionBaseName:
+    Default: celosia-state-machine
+    Type: String
+    Description: "The Base Name The Lambda Function. The Region And Environment Will Be Added As Suffix By The Template."
+  StepFunctionExecutionRoleName:
+    Default: celosia-step-function-role
+    Type: String
+    Description: "The Execution Role Of The State Machine."
+  StepFunctionExecutionPolicyName:
+    Default: celosia-step-function-policy
+    Type: String
+    Description: "The Execution Policy Of The State Machine."
+  ###################################### 1. Lambda Invocations CW Alarm ############################
+  AlarmNameLambdaInvocations:
+    Default: celosia-lambda-invocations-alarm
+    Type: String
+    Description: "The Lambda Invocations Alarm Name. The Region And Environment Will Be Added As Suffix By The Template.."
+  AlarmThresholdLambdaInvocations:
+    Default: 5
+    Type: Number
+    Description: "The Cloudwatch Alarm Threshold. Number Of Lambda Executions After Which The Alarm Will Be Triggered."
+  AlarmPeriodInSecondsLambdaInvocations:
+    Default: 60
+    Type: Number
+    Description: "The Period, In Seconds, Over Which The Statistic Is Applied."
+  DatapointsToAlarmLambdaInvocations: 
+    Default: 1
+    Type: Number
+    Description: "The CloudWatch Alarm Threshold."
+  EvaluationPeriodsForLambdaInvocations: 
+    Default: 1
+    Type: Number
+    Description: "The Number Of Periods Over Which Data Is Compared To The Specified Threshold."
+  AlarmComparisonOperatorLambdaInvocations:
+    Default: "GreaterThanOrEqualToThreshold"
+    Type: String
+    Description: "The Lambda Invocations Alarm Comparison Operator."
+  ###################################### 2. Lambda Error CW Alarm ##################################
+  AlarmNameLambdaErrors:
+    Default: celosia-lambda-errors
+    Type: String
+    Description: "The Lambda Errors Alarm Name. The Region And Environment Will Be Added As Suffix By The Template."
+  AlarmThresholdLambdaErrors:
+    Default: 2
+    Type: Number
+    Description: "The Cloudwatch Alarm Threshold.Number Of Lambda Executions After Which The Alarm Will Be Triggered."
+  AlarmPeriodInSecondsLambdaErrors:
+    Default: 60
+    Type: Number
+    Description: "The Period, In Seconds, Over Which The Statistic Is Applied."
+  DatapointsToAlarmLambdaErrors: 
+    Default: 1
+    Type: Number
+    Description: "The CloudWatch Alarm Threshold."
+  EvaluationPeriodsForLambdaErrors: 
+    Default: 1
+    Type: Number
+    Description: "The Number Of Periods Over Which Data Is Compared To The Specified Threshold."
+  AlarmComparisonOperatorLambdaErrors:
+    Default: "GreaterThanOrEqualToThreshold"
+    Type: String
+    Description: "The Lambda Errors Alarm Comparison Operator."
+  ###################################### 3. Lambda Throttles CW Alarm ##############################
+  AlarmNameLambdaThrottles:
+    Default: celosia-lambda-throttles
+    Type: String
+    Description: "The Lambda Throttles Alarm Name. The Region And Environment Will Be Added As Suffix By The Template."
+  AlarmThresholdLambdaThrottles:
+    Default: 3
+    Type: Number
+    Description: "The Cloudwatch Alarm Threshold.The Number Of Lambda Throttles After Which The Alarm Will Be Triggered."
+  AlarmPeriodInSecondsLambdaThrottles:
+    Default: 60
+    Type: Number
+    Description: "The Period, In Seconds, Over Which The Statistic Is Applied."
+  DatapointsToAlarmLambdaThrottles: 
+    Default: 1
+    Type: Number
+    Description: "The CloudWatch Alarm Threshold."
+  EvaluationPeriodsForLambdaThrottles: 
+    Default: 1
+    Type: Number
+    Description: "The Number Of Periods Over Which Data Is Compared To The Specified Threshold."
+  AlarmComparisonOperatorLambdaThrottles:
+    Default: "GreaterThanOrEqualToThreshold"
+    Type: String
+    Description: "The Lambda Throttles Alarm Comparison Operator."
+  ###################################### 4. Lambda Duration CW Alarm ###############################
+  AlarmNameLambdaDuration:
+    Default: celosia-duration
+    Type: String
+    Description: "The Lambda Duration Alarm Name. The Region And Environment Will Be Added As Suffix By The Template."
+  AlarmThresholdLambdaDuration:
+    Default: 100
+    Type: Number
+    Description: "The CloudWatch Alarm Threshold.The Number Of Milliseconds The Alarm Will Be Triggered."
+  AlarmPeriodInSecondsLambdaDuration:
+    Default: 900
+    Type: Number
+    Description: "The Period, In Seconds, Over Which The Statistic Is Applied."
+  DatapointsToAlarmLambdaDuration: 
+    Default: 1
+    Type: Number
+    Description: "The CloudWatch Alarm Threshold."
+  EvaluationPeriodsForLambdaDuration: 
+    Default: 1
+    Type: Number
+    Description: "The Number Of Periods Over Which Data Is Compared To The Specified Threshold."
+  AlarmComparisonOperatorLambdaDuration:
+    Default: "GreaterThanOrEqualToThreshold"
+    Description: "The Lambda Duration Alarm Comparison Operator."
+    Type: String
+  ###################################### 5. Lambda Concurrent Executions CW Alarm ##################
+  AlarmNameLambdaConcurrentExecutions:
+    Default: celosia-conc-exec
+    Type: String
+    Description: "The Lambda Concurrent Executions Alarm Name. The Region And Environment Will Be Added As Suffix By The Template."
+  AlarmThresholdLambdaConcurrentExecutions:
+    Default: 3
+    Description: "The CloudWatch Alarm Threshold.After The Number Of Concurrent Executions The Alarm Will Be Triggered."
+    Type: Number
+  AlarmPeriodInSecondsLambdaConcurrentExecutions:
+    Default: 60
+    Type: Number
+    Description: "The Period, In Seconds, Over Which The Statistic Is Applied."
+  DatapointsToAlarmLambdaConcurrentExecutions: 
+    Default: 1
+    Type: Number
+    Description: "The CloudWatch Alarm Threshold."
+  EvaluationPeriodsForLambdaConcurrentExecutions: 
+    Default: 1
+    Type: Number
+    Description: "The Number Of Periods Over Which Data Is Compared To The Specified Threshold."
+  AlarmComparisonOperatorLambdaConcurrentExecutions:
+    Default: "GreaterThanOrEqualToThreshold"
+    Type: String
+    Description: "The Lambda Concurrent Executions Alarm Comparison Operator."
+Resources:
+  ###################################### SNS Topic With Email Subscription #########################
+  CelosiaSNSTopic:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/cft/nested-stacks/sns-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        TopicBaseName: !Ref SNSTopicBaseName
+        TopicDisplayName: !Ref SNSTopicDisplayName 
+        SubscriptionEmail: !Ref SNSSubscriptionEmail
+        KmsMasterKeyAlias: !Ref KmsMasterKeyAlias
+      TimeoutInMinutes: 15
+  ###################################### SQS Queue #################################################
+  CelosiaSQSQueue:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/cft/nested-stacks/sqs-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        QueueName: !Ref SQSQueueBaseName
+        DelaySeconds: !Ref DelaySeconds 
+        KmsMasterKeyAlias: !Ref KmsMasterKeyAlias
+        MaximumMessageSize: !Ref MaximumMessageSize
+        MessageRetentionPeriod: !Ref MessageRetentionPeriod
+        ReceiveMessageWaitTimeSeconds: !Ref ReceiveMessageWaitTimeSeconds
+        VisibilityTimeout: !Ref VisibilityTimeout
+      TimeoutInMinutes: 15
+  ###################################### DynamoDB Table ############################################
+  CelosiaDynamoDBTable:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::Serverless::SimpleTable # More info about SimpleTable Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-simpletable.html
+    Properties:
+      TableName: !Join ['-', [!Ref DynamoDBTableBaseName, !Ref Environment, !Ref 'AWS::Region']]
+      PrimaryKey:
+        Name: MessageId
+        Type: String
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+  ###################################### Lambda And State Machine Execution Role ###################
+  CelosiaIAMExecutionRole:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/cft/nested-stacks/iam-role-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        LambdaExecutionRoleName: !Ref LambdaExecutionRoleName
+        LambdaExecutionPolicyName: !Ref LambdaExecutionPolicyName
+        LambdaFunctionBaseName: !Ref LambdaFunctionBaseName
+        StepFunctionExecutionRoleName: !Ref StepFunctionExecutionRoleName
+        StepFunctionExecutionPolicyName: !Ref StepFunctionExecutionPolicyName
+        SNSTopicBaseName: !Ref SNSTopicBaseName
+        SQSQueueBaseName: !Ref SQSQueueBaseName
+        KmsMasterKeyId: !Ref KmsMasterKeyId
+      TimeoutInMinutes: 15
+  ###################################### Lambda Function ###########################################
+  CelosiaLambdaFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+    Properties:
+      FunctionName: !Sub '${LambdaFunctionBaseName}-${Environment}-${AWS::Region}'
+      Description: "Celosia Lambda To Generate Some Random Data"
+      PackageType: Zip
+      CodeUri: s3://subhamay-projects-repository-us-east-1/0069-celosia/code/python/celosia_code.zip
+      Role: !GetAtt CelosiaIAMExecutionRole.Outputs.LambdaExecutionRoleArn
+      ReservedConcurrentExecutions: !Ref LambdaReservedConcurrency
+      Environment:
+        Variables:
+            DYNAMODB_TABLE_NAME: !Join ['-', [!Ref DynamoDBTableBaseName, !Ref Environment, !Ref 'AWS::Region']]
+      Architectures:
+        - x86_64
+  ###################################### Step Function #############################################
+  CelosiaStateMachine:
+    Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Properties:
+      Name: !Sub '${StepFunctionBaseName}-${Environment}-${AWS::Region}'
+      DefinitionUri: state-machine/state-machine.asl.json
+      Role: !GetAtt CelosiaIAMExecutionRole.Outputs.StepFunctionExecutionRoleArn
+      DefinitionSubstitutions:
+        LambdaFunctionArn: !GetAtt CelosiaLambdaFunction.Arn
+        DynamoDBTableName: !Sub '${DynamoDBTableBaseName}-${Environment}-${AWS::Region}' 
+        SQSQueueURL: !GetAtt CelosiaSQSQueue.Outputs.SQSQueueURL
+  ###################################### CloudWatch Alarms #########################################
+  CelosiaCloudWatchAlarms:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://subhamay-projects-repository-us-east-1.s3.amazonaws.com/0069-celosia/cft/nested-stacks/cloudwatch-stack.yaml
+      Parameters:  
+        ProjectName: !Ref ProjectName
+        Environment: !Ref Environment
+        LambdaFunctionName: !Sub '${LambdaFunctionBaseName}-${Environment}-${AWS::Region}'
+        SNSTopicName: !Sub '${SNSTopicBaseName}-${Environment}-${AWS::Region}'
+        AlarmNameLambdaInvocations: !Ref AlarmNameLambdaInvocations
+        AlarmThresholdLambdaInvocations: !Ref AlarmThresholdLambdaInvocations
+        AlarmPeriodInSecondsLambdaInvocations: !Ref AlarmPeriodInSecondsLambdaInvocations
+        DatapointsToAlarmLambdaInvocations: !Ref DatapointsToAlarmLambdaInvocations
+        EvaluationPeriodsForLambdaInvocations: !Ref EvaluationPeriodsForLambdaInvocations
+        AlarmComparisonOperatorLambdaInvocations: !Ref AlarmComparisonOperatorLambdaInvocations
+        AlarmNameLambdaErrors: !Ref AlarmNameLambdaErrors
+        AlarmThresholdLambdaErrors: !Ref AlarmThresholdLambdaErrors
+        AlarmPeriodInSecondsLambdaErrors: !Ref AlarmPeriodInSecondsLambdaErrors
+        DatapointsToAlarmLambdaErrors: !Ref DatapointsToAlarmLambdaErrors
+        EvaluationPeriodsForLambdaErrors: !Ref EvaluationPeriodsForLambdaErrors
+        AlarmComparisonOperatorLambdaErrors: !Ref AlarmComparisonOperatorLambdaErrors
+        AlarmNameLambdaThrottles: !Ref AlarmNameLambdaThrottles
+        AlarmThresholdLambdaThrottles: !Ref AlarmThresholdLambdaThrottles
+        AlarmPeriodInSecondsLambdaThrottles: !Ref AlarmPeriodInSecondsLambdaThrottles
+        DatapointsToAlarmLambdaThrottles: !Ref DatapointsToAlarmLambdaThrottles
+        EvaluationPeriodsForLambdaThrottles: !Ref EvaluationPeriodsForLambdaThrottles
+        AlarmComparisonOperatorLambdaThrottles: !Ref AlarmComparisonOperatorLambdaThrottles
+        AlarmNameLambdaDuration: !Ref AlarmNameLambdaDuration
+        AlarmThresholdLambdaDuration: !Ref AlarmThresholdLambdaDuration
+        AlarmPeriodInSecondsLambdaDuration: !Ref AlarmPeriodInSecondsLambdaDuration
+        DatapointsToAlarmLambdaDuration: !Ref DatapointsToAlarmLambdaDuration
+        EvaluationPeriodsForLambdaDuration: !Ref EvaluationPeriodsForLambdaDuration
+        AlarmComparisonOperatorLambdaDuration: !Ref AlarmComparisonOperatorLambdaDuration
+        AlarmNameLambdaConcurrentExecutions: !Ref AlarmNameLambdaConcurrentExecutions
+        AlarmThresholdLambdaConcurrentExecutions: !Ref AlarmThresholdLambdaConcurrentExecutions
+        AlarmPeriodInSecondsLambdaConcurrentExecutions: !Ref AlarmPeriodInSecondsLambdaConcurrentExecutions
+        DatapointsToAlarmLambdaConcurrentExecutions: !Ref DatapointsToAlarmLambdaConcurrentExecutions
+        EvaluationPeriodsForLambdaConcurrentExecutions: !Ref EvaluationPeriodsForLambdaConcurrentExecutions
+        AlarmComparisonOperatorLambdaConcurrentExecutions: !Ref AlarmComparisonOperatorLambdaConcurrentExecutions
+      TimeoutInMinutes: 15
+
+
+
+  # ApplicationResourceGroup:
+  #   Type: AWS::ResourceGroups::Group
+  #   Properties:
+  #     Name:
+  #       Fn::Join:
+  #       - ''
+  #       - - ApplicationInsights-SAM-
+  #         - Ref: AWS::StackName
+  #     ResourceQuery:
+  #       Type: CLOUDFORMATION_STACK_1_0
+  # ApplicationInsightsMonitoring:
+  #   Type: AWS::ApplicationInsights::Application
+  #   Properties:
+  #     ResourceGroupName:
+  #       Fn::Join:
+  #       - ''
+  #       - - ApplicationInsights-SAM-
+  #         - Ref: AWS::StackName
+  #     AutoConfigurationEnabled: 'true'
+  #   DependsOn: ApplicationResourceGroup
+Outputs:
+  # StockTradingStateMachineHourlyTradingSchedule is an implicit Schedule event rule created out of Events key under Serverless::StateMachine
+  # Find out more about other implicit resources you can reference within SAM
+  # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-specification-generated-resources.html
+  CelosiaSNSTopicArn:
+    Description: Celosia SNS Topic Arn
+    Value: !GetAtt CelosiaSNSTopic.Outputs.SNSTopicArn
+  CelosiaSNSSubscriptionArn:
+    Description: Celosia SNS Topc Subscription Arn
+    Value: !GetAtt CelosiaSNSTopic.Outputs.SNSSubscriptionArn
+  CelosiaSQSURL:
+    Description: Celosia SQS Queue URL
+    Value: !GetAtt CelosiaSQSQueue.Outputs.SQSQueueURL
+  CelosiaSSQSArn:
+    Description: Celosia SQS Queue Arn
+    Value: !GetAtt CelosiaSQSQueue.Outputs.SQSQueueArn
+  CelosiaDynamoDBTableArn: 
+    Description: Celosia DynamoDB Table Arn
+    Value: !Ref CelosiaDynamoDBTable
+  CelosiaLambdaExecutionRoleArn:
+    Description: Celosia Lambda Execution Role Arn
+    Value: !GetAtt CelosiaIAMExecutionRole.Outputs.LambdaExecutionRoleArn
+  CelosiaStepFunctionExecutionRoleArn:
+    Description: Celosia State Function Execution Role Arn
+    Value: !GetAtt CelosiaIAMExecutionRole.Outputs.StepFunctionExecutionRoleArn
+  CelosiaLambdaFunctionArn: 
+    Description: Celosia Seed DynamoDB Table Lambda Function Arn
+    Value: !GetAtt CelosiaLambdaFunction.Arn
+  CelosiaStateMachineArn:
+    Description: Celosia State Machine Arn
+    Value: !GetAtt CelosiaStateMachine.Arn
+  CelosiaLambdaInvocationsAlarmArn:
+    Description: Celosia Lambda Invocations Alarm Arn 
+    Value: !GetAtt CelosiaCloudWatchAlarms.Outputs.CloudWatchAlarmLambdaInvocationsArn
+  CelosiaLambdaErrorsAlarmArn:
+    Description: Celosia Lambda Errors Alarm Arn 
+    Value: !GetAtt CelosiaCloudWatchAlarms.Outputs.CloudWatchAlarmLambdaErrorsArn
+  CelosiaLambdaThrottlesAlarmArn:
+    Description: Celosia Lambda Throttles Alarm Arn 
+    Value: !GetAtt CelosiaCloudWatchAlarms.Outputs.CloudWatchAlarmLambdaThrottlesArn
+  CelosiaLambdaDurationAlarmArn:
+    Description: Celosia Lambda Duration Alarm Arn 
+    Value: !GetAtt CelosiaCloudWatchAlarms.Outputs.CloudWatchAlarmLambdaDurationArn
+  CelosiaLambdaConcurrentExecutionsAlarmArn:
+    Description: Celosia Lambda Concurrent Executions Alarm Arn 
+    Value: !GetAtt CelosiaCloudWatchAlarms.Outputs.CloudWatchAlarmLambdaConurrentExecutionsArn
